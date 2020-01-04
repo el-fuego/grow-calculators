@@ -1,6 +1,13 @@
 <template>
   <div>
     <h1>Light intensity visualization</h1>
+    <div class="height-range">
+      Height:
+      <range-slider :min="0" :max="100" v-model="measurementArea.height">
+      </range-slider>
+      {{ measurementArea.height }}
+    </div>
+
     <div class="content">
       <div class="heat-map-container">
         <heat-map
@@ -14,12 +21,12 @@
 
         <light-points
           class="light-points-container"
-          :lightPoints="lightPoints"
+          v-model="lightPoints"
           :pointsPerLengthCount="measurementArea.pointsPerLengthCount"
         ></light-points>
       </div>
 
-      <div class="range">
+      <div class="cut-range">
         Cut on:
         <range-slider
           :min="0"
@@ -107,36 +114,42 @@ export default {
   data: () => ({
     lightPoints: [
       {
+        id: Math.random(),
         x: 10,
         y: 10,
         flowWidthAngle: 120,
         intensity: 1
       },
       {
+        id: Math.random(),
         x: 10,
         y: 90,
         flowWidthAngle: 120,
         intensity: 1
       },
       {
+        id: Math.random(),
         x: 190,
         y: 10,
         flowWidthAngle: 120,
         intensity: 1
       },
       {
+        id: Math.random(),
         x: 190,
         y: 90,
         flowWidthAngle: 120,
         intensity: 1
       },
       {
+        id: Math.random(),
         x: 120,
         y: 50,
         flowWidthAngle: 120,
         intensity: 1
       },
       {
+        id: Math.random(),
         x: 140,
         y: 50,
         flowWidthAngle: 120,
@@ -268,9 +281,11 @@ export default {
   bottom: 0;
 }
 
-.range {
+.height-range,
+.cut-range {
   display: flex;
   align-items: center;
   justify-content: center;
+  margin: 40px 0 20px 0;
 }
 </style>

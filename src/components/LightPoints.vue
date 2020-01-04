@@ -1,23 +1,49 @@
 <template>
-  <div class="light-points-container">
-    <div
-      v-for="point in lightPoints"
-      :key="`${point.x},${point.y}`"
+  <drop class="light-points-container" @drop="onDrop">
+    <drag
+      v-for="lightPoint in value"
+      :key="`${lightPoint.x},${lightPoint.y}`"
       class="light-point"
+      :transfer-data="lightPoint.id"
       :style="
-        `left: ${point.x * pointsPerLengthCount}px; top: ${point.y *
+        `left: ${lightPoint.x * pointsPerLengthCount}px; top: ${lightPoint.y *
           pointsPerLengthCount}px;`
       "
-    ></div>
-  </div>
+    ></drag>
+  </drop>
 </template>
 
 <script>
 export default {
   name: "LightPoints",
   props: {
-    lightPoints: Array,
+    value: Array,
     pointsPerLengthCount: Number
+  },
+  methods: {
+    onDrop(id, event) {
+      if (
+        event.offsetX / this.pointsPerLengthCount <= 0 ||
+        event.offsetY / this.pointsPerLengthCount <= 0
+      ) {
+        return;
+      }
+
+      this.$emit(
+        "input",
+        this.value.map(lightPoint => {
+          if (id !== lightPoint.id) {
+            return lightPoint;
+          }
+
+          return {
+            ...lightPoint,
+            x: event.offsetX / this.pointsPerLengthCount,
+            y: event.offsetY / this.pointsPerLengthCount
+          };
+        })
+      );
+    }
   }
 };
 </script>

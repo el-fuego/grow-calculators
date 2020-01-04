@@ -36,6 +36,11 @@ export default {
   mounted() {
     this.draw();
   },
+  watch: {
+    areaIntensityData() {
+      this.draw();
+    }
+  },
   methods: {
     draw() {
       const ctx = this.$refs.canvas.getContext("2d");
