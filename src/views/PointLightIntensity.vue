@@ -112,7 +112,7 @@ export default {
   },
 
   data: () => ({
-    lightPoints: [
+    lightPoints: JSON.parse(localStorage.getItem("lightPoints") || "null") || [
       {
         id: Math.random(),
         x: 10,
@@ -156,7 +156,9 @@ export default {
         intensity: 1
       }
     ],
-    measurementArea: {
+    measurementArea: JSON.parse(
+      localStorage.getItem("measurementArea") || "null"
+    ) || {
       xLength: 200,
       yLength: 100,
       height: 10,
@@ -165,6 +167,23 @@ export default {
     },
     currentCutY: 50
   }),
+  watch: {
+    lightPoints: {
+      handler(measurementArea) {
+        localStorage.setItem("lightPoints", JSON.stringify(measurementArea));
+      },
+      deep: true
+    },
+    measurementArea: {
+      handler(measurementArea) {
+        localStorage.setItem(
+          "measurementArea",
+          JSON.stringify(measurementArea)
+        );
+      },
+      deep: true
+    }
+  },
   computed: {
     areaIntensityData() {
       const {
