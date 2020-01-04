@@ -22,27 +22,28 @@
         {{ currentCutY }}
       </div>
 
-      <la-cartesian
-        :bound="[0, maxIntensity]"
-        :data="areaCutIntensityData"
-        :width="600"
-      >
-        <la-area prop="intensity"></la-area>
-      </la-cartesian>
+      <chart
+        class="cut-chart"
+        :intensityData="areaCutIntensityData"
+        :maxIntensity="maxIntensity"
+        :width="measurementArea.xLength"
+        :height="measurementArea.yLength"
+        :pointsPerLengthCount="measurementArea.pointsPerLengthCount"
+      ></chart>
     </div>
   </div>
 </template>
 
 <script>
 import { times, sumBy, flatten, max, map } from "lodash";
-import { Cartesian, Area } from "laue";
 import RangeSlider from "vue-range-slider";
 import "vue-range-slider/dist/vue-range-slider.css";
 
+import Chart from "../components/Chart";
 import HeatMap from "../components/HeatMap";
 
 const radianToDegree = radian => (radian * 180) / Math.PI;
-// const degreeToRadian = degree => (Math.PI * degree) / 180;
+const degreeToRadian = degree => (Math.PI * degree) / 180;
 
 const getRectangularTriangleTopAngle = (width, height) =>
   radianToDegree(Math.atan(width / height));
@@ -50,10 +51,15 @@ const getRectangularTriangleTopAngle = (width, height) =>
 const getRectangularTriangleDiagonalsLength = (width, height) =>
   Math.sqrt(width * width + height * height);
 
+const getConeBaseSquare = (topAngle, height) =>
+  Math.PI * Math.pow(Math.tan(degreeToRadian(topAngle / 2)) * height, 2);
+
 const getMeasurementPointIntensity = (
-  { measurementX, measurementY, areaPointsCount, height },
+  { measurementX, measurementY, pointsPerLengthCount, height },
   { intensity, flowWidthAngle, x, y }
 ) => {
+  const lightPointRayCount =
+    getConeBaseSquare(flowWidthAngle, height) * pointsPerLengthCount;
   const measurementToLightPointXLength = Math.abs(measurementX - x);
   const measurementToLightPointYLength = Math.abs(measurementY - y);
   const measurementToLightPointOnSquareLength = getRectangularTriangleDiagonalsLength(
@@ -74,17 +80,16 @@ const getMeasurementPointIntensity = (
     height
   );
 
-  // TODO враховувати відзеркалення
   return (
-    intensity / (areaPointsCount * Math.pow(measurementToLightPointLength, 2))
+    intensity /
+    (lightPointRayCount * Math.pow(measurementToLightPointLength, 2))
   );
 };
 
 export default {
   name: "PointLightIntensity",
   components: {
-    LaCartesian: Cartesian,
-    LaArea: Area,
+    Chart: Chart,
     RangeSlider,
     HeatMap
   },
@@ -93,7 +98,25 @@ export default {
     lightPoints: [
       {
         x: 10,
-        y: 50,
+        y: 10,
+        flowWidthAngle: 120,
+        intensity: 1
+      },
+      {
+        x: 10,
+        y: 90,
+        flowWidthAngle: 120,
+        intensity: 1
+      },
+      {
+        x: 190,
+        y: 10,
+        flowWidthAngle: 120,
+        intensity: 1
+      },
+      {
+        x: 190,
+        y: 90,
         flowWidthAngle: 120,
         intensity: 1
       },
@@ -114,7 +137,8 @@ export default {
       xLength: 200,
       yLength: 100,
       height: 10,
-      pointsPerLengthCount: 3
+      pointsPerLengthCount: 3,
+      mirroringCoefficient: 0.8
     },
     currentCutY: 50
   }),
@@ -124,11 +148,11 @@ export default {
         pointsPerLengthCount,
         xLength,
         yLength,
-        height
+        height,
+        mirroringCoefficient
       } = this.measurementArea;
       const xPointsCount = xLength * pointsPerLengthCount;
       const yPointsCount = yLength * pointsPerLengthCount;
-      const areaPointsCount = xPointsCount * yPointsCount;
 
       return flatten(
         times(yPointsCount, measurementYPointIndex =>
@@ -136,22 +160,58 @@ export default {
             const measurementX = measurementXPointIndex / pointsPerLengthCount;
             const measurementY = measurementYPointIndex / pointsPerLengthCount;
 
-            const measurementIntensity = sumBy(this.lightPoints, lightPoint =>
-              getMeasurementPointIntensity(
+            const measurementDirectIntensity = sumBy(
+              this.lightPoints,
+              lightPoint =>
+                getMeasurementPointIntensity(
+                  {
+                    measurementX,
+                    measurementY,
+                    pointsPerLengthCount,
+                    height
+                  },
+                  lightPoint
+                )
+            );
+
+            // TODO calculate multiple mirroring (use while)
+            const mirroredIntensity = sumBy(
+              [
                 {
-                  measurementX,
-                  measurementY,
-                  areaPointsCount,
-                  height
+                  measurementX: -measurementX,
+                  measurementY: measurementY
                 },
-                lightPoint
-              )
+                {
+                  measurementX: measurementX,
+                  measurementY: -measurementY
+                },
+                {
+                  measurementX: xLength * 2 - measurementX,
+                  measurementY: measurementY
+                },
+                {
+                  measurementX: measurementX,
+                  measurementY: yLength * 2 - measurementY
+                }
+              ],
+              measurementPointCoordinates =>
+                mirroringCoefficient *
+                sumBy(this.lightPoints, lightPoint =>
+                  getMeasurementPointIntensity(
+                    {
+                      ...measurementPointCoordinates,
+                      pointsPerLengthCount,
+                      height
+                    },
+                    lightPoint
+                  )
+                )
             );
 
             return {
               x: measurementX,
               y: measurementY,
-              intensity: measurementIntensity
+              intensity: measurementDirectIntensity + mirroredIntensity
             };
           })
         )
@@ -175,8 +235,13 @@ export default {
   margin: 0 auto;
 }
 
+.cut-chart,
 .heat-map {
   width: 100%;
+}
+
+.cut-chart polygon {
+  fill: blueviolet;
 }
 
 .range {
