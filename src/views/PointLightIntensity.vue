@@ -2,14 +2,22 @@
   <div>
     <h1>Light intensity visualization</h1>
     <div class="content">
-      <heat-map
-        class="heat-map"
-        :areaIntensityData="areaIntensityData"
-        :width="measurementArea.xLength"
-        :height="measurementArea.yLength"
-        :pointsPerLengthCount="measurementArea.pointsPerLengthCount"
-      >
-      </heat-map>
+      <div class="heat-map-container">
+        <heat-map
+          class="heat-map"
+          :areaIntensityData="areaIntensityData"
+          :width="measurementArea.xLength"
+          :height="measurementArea.yLength"
+          :pointsPerLengthCount="measurementArea.pointsPerLengthCount"
+        >
+        </heat-map>
+
+        <light-points
+          class="light-points-container"
+          :lightPoints="lightPoints"
+          :pointsPerLengthCount="measurementArea.pointsPerLengthCount"
+        ></light-points>
+      </div>
 
       <div class="range">
         Cut on:
@@ -41,6 +49,7 @@ import "vue-range-slider/dist/vue-range-slider.css";
 
 import Chart from "../components/Chart";
 import HeatMap from "../components/HeatMap";
+import LightPoints from "../components/LightPoints";
 
 const radianToDegree = radian => (radian * 180) / Math.PI;
 const degreeToRadian = degree => (Math.PI * degree) / 180;
@@ -89,6 +98,7 @@ const getMeasurementPointIntensity = (
 export default {
   name: "PointLightIntensity",
   components: {
+    LightPoints,
     Chart: Chart,
     RangeSlider,
     HeatMap
@@ -137,7 +147,7 @@ export default {
       xLength: 200,
       yLength: 100,
       height: 10,
-      pointsPerLengthCount: 3,
+      pointsPerLengthCount: 2,
       mirroringCoefficient: 0.8
     },
     currentCutY: 50
@@ -235,13 +245,27 @@ export default {
   margin: 0 auto;
 }
 
-.cut-chart,
-.heat-map {
-  width: 100%;
+.heat-map-container {
+  position: relative;
+  display: inline-block;
+  margin: 0 auto;
 }
+
+/*.cut-chart,*/
+/*.heat-map {*/
+/*width: 100%;*/
+/*}*/
 
 .cut-chart polygon {
   fill: blueviolet;
+}
+
+.light-points-container {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
 }
 
 .range {
