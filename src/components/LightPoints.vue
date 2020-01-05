@@ -5,6 +5,9 @@
       :key="`${lightPoint.x},${lightPoint.y}`"
       class="light-point"
       :transfer-data="lightPoint.id"
+      :title="
+        `x:${lightPoint.x}, y:${lightPoint.y}, intensity: ${lightPoint.intensity}, angle: ${lightPoint.flowWidthAngle}`
+      "
       :style="
         `left: ${lightPoint.x * pointsPerLengthCount}px; top: ${lightPoint.y *
           pointsPerLengthCount}px;`
