@@ -1,10 +1,10 @@
 <template>
-  <drop class="light-points-container" @drop="onDrop">
+  <drop class="light-points-container" @drop="moveLightPoint">
     <drag
       v-for="lightPoint in value"
       :key="`${lightPoint.x},${lightPoint.y}`"
-      class="light-point"
       :transfer-data="lightPoint.id"
+      :class="['light-point', selectedLightPoint === lightPoint && 'selected']"
       :title="
         `x:${lightPoint.x}, y:${lightPoint.y}, intensity: ${lightPoint.intensity}, angle: ${lightPoint.flowWidthAngle}`
       "
@@ -12,6 +12,7 @@
         `left: ${lightPoint.x * pointsPerLengthCount}px; top: ${lightPoint.y *
           pointsPerLengthCount}px;`
       "
+      ><div @click.stop="$emit('click', lightPoint)"></div
     ></drag>
   </drop>
 </template>
@@ -21,10 +22,11 @@ export default {
   name: "LightPoints",
   props: {
     value: Array,
+    selectedLightPoint: Object,
     pointsPerLengthCount: Number
   },
   methods: {
-    onDrop(id, event) {
+    moveLightPoint(id, event) {
       if (
         event.offsetX / this.pointsPerLengthCount <= 0 ||
         event.offsetY / this.pointsPerLengthCount <= 0
@@ -51,17 +53,31 @@ export default {
 };
 </script>
 
-<style>
+<style scoped>
 .light-point {
   position: absolute;
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background-color: blueviolet;
   transform: translate(-50%, -50%);
   visibility: hidden;
   opacity: 0;
+  background-color: blueviolet;
+  cursor: pointer;
   transition: visibility 0.3s, opacity 0.3s;
+}
+
+.light-point.selected {
+  opacity: 1;
+  visibility: visible;
+}
+
+.light-point div {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 10px;
+  height: 10px;
 }
 
 .light-points-container:hover .light-point {

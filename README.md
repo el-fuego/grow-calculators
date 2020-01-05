@@ -18,7 +18,6 @@ Also you are able to see light intensity graph at specific X-axis line cut:
 
 ### TODO
 1. Add new line point
-1. Edit light point parameters
 1. Edit surface parameters
 1. Save results on server to be able to share
 

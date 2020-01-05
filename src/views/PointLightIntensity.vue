@@ -1,14 +1,21 @@
 <template>
   <div>
     <h1>Light intensity visualization</h1>
-    <div class="height-range">
-      Height:
-      <range-slider :min="0" :max="100" v-model="measurementArea.height">
-      </range-slider>
-      {{ measurementArea.height }}
-    </div>
+    <light-point-form
+      v-if="selectedLightPoint"
+      class="form"
+      :key="selectedLightPoint && selectedLightPoint.id"
+      :lightPoint="selectedLightPoint"
+    ></light-point-form>
 
     <div class="content">
+      <div class="height-range">
+        Height:
+        <range-slider :min="0" :max="100" v-model="measurementArea.height">
+        </range-slider>
+        {{ measurementArea.height }}
+      </div>
+
       <div class="heat-map-container">
         <heat-map
           class="heat-map"
@@ -22,6 +29,8 @@
         <light-points
           class="light-points-container"
           v-model="lightPoints"
+          :selectedLightPoint="selectedLightPoint"
+          @click="showLightPointForm"
           :pointsPerLengthCount="measurementArea.pointsPerLengthCount"
         ></light-points>
       </div>
@@ -57,6 +66,7 @@ import "vue-range-slider/dist/vue-range-slider.css";
 import Chart from "../components/Chart";
 import HeatMap from "../components/HeatMap";
 import LightPoints from "../components/LightPoints";
+import LightPointForm from "../components/LightPointForm";
 
 // const radianToDegree = radian => (radian * 180) / Math.PI;
 const degreeToRadian = degree => (Math.PI * degree) / 180;
@@ -109,6 +119,7 @@ const getMeasurementPointIntensity = (
 export default {
   name: "PointLightIntensity",
   components: {
+    LightPointForm,
     LightPoints,
     Chart: Chart,
     RangeSlider,
@@ -116,6 +127,7 @@ export default {
   },
 
   data: () => ({
+    selectedLightPoint: null,
     lightPoints: JSON.parse(localStorage.getItem("lightPoints") || "null") || [
       {
         id: Math.random(),
@@ -344,6 +356,21 @@ export default {
     maxIntensity() {
       return max(map(this.areaIntensityData, "intensity"));
     }
+  },
+  mounted() {
+    document.addEventListener("click", this.hideLightPointForm);
+  },
+  beforeDestroy() {
+    document.removeEventListener("click", this.hideLightPointForm);
+  },
+  methods: {
+    showLightPointForm(lightPoint) {
+      this.selectedLightPoint = lightPoint;
+    },
+
+    hideLightPointForm() {
+      this.selectedLightPoint = null;
+    }
   }
 };
 </script>
@@ -383,5 +410,11 @@ export default {
   align-items: center;
   justify-content: center;
   margin: 40px 0 20px 0;
+}
+
+.form {
+  position: fixed;
+  top: 20px;
+  right: 20px;
 }
 </style>
