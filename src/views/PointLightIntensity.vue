@@ -50,7 +50,7 @@
 </template>
 
 <script>
-import { times, sumBy, flatten, max, map } from "lodash";
+import { times, sumBy, min, max, map } from "lodash";
 import RangeSlider from "vue-range-slider";
 import "vue-range-slider/dist/vue-range-slider.css";
 
@@ -58,36 +58,38 @@ import Chart from "../components/Chart";
 import HeatMap from "../components/HeatMap";
 import LightPoints from "../components/LightPoints";
 
-const radianToDegree = radian => (radian * 180) / Math.PI;
+// const radianToDegree = radian => (radian * 180) / Math.PI;
 const degreeToRadian = degree => (Math.PI * degree) / 180;
 
 const getRectangularTriangleTopAngle = (width, height) =>
-  radianToDegree(Math.atan(width / height));
+  Math.atan(width / height);
 
 const getRectangularTriangleDiagonalsLength = (width, height) =>
   Math.sqrt(width * width + height * height);
 
-const getConeBaseSquare = (topAngle, height) =>
-  Math.PI * Math.pow(Math.tan(degreeToRadian(topAngle / 2)) * height, 2);
+const getRectangularTriangleBaseLength = (topAngle, height) =>
+  Math.tan(topAngle) * height;
+
+const getCircleSquare = radius => {
+  return Math.PI * radius * radius;
+};
 
 const getMeasurementPointIntensity = (
-  { measurementX, measurementY, pointsPerLengthCount, height },
-  { intensity, flowWidthAngle, x, y }
+  { measurementX, measurementY, height },
+  { intensity, flowWidthHalfAngleRadian, x, y, lightPointRayCount }
 ) => {
-  const lightPointRayCount =
-    getConeBaseSquare(flowWidthAngle, height) * pointsPerLengthCount;
   const measurementToLightPointXLength = Math.abs(measurementX - x);
   const measurementToLightPointYLength = Math.abs(measurementY - y);
   const measurementToLightPointOnSquareLength = getRectangularTriangleDiagonalsLength(
     measurementToLightPointXLength,
     measurementToLightPointYLength
   );
-  const measurementAndLightPointAngle = getRectangularTriangleTopAngle(
+  const measurementAndLightPointAngleRadian = getRectangularTriangleTopAngle(
     measurementToLightPointOnSquareLength,
     height
   );
 
-  if (measurementAndLightPointAngle > flowWidthAngle / 2) {
+  if (measurementAndLightPointAngleRadian > flowWidthHalfAngleRadian) {
     return 0;
   }
 
@@ -98,7 +100,9 @@ const getMeasurementPointIntensity = (
 
   return (
     intensity /
-    (lightPointRayCount * Math.pow(measurementToLightPointLength, 2))
+    (lightPointRayCount *
+      measurementToLightPointLength *
+      measurementToLightPointLength)
   );
 };
 
@@ -169,8 +173,8 @@ export default {
   }),
   watch: {
     lightPoints: {
-      handler(measurementArea) {
-        localStorage.setItem("lightPoints", JSON.stringify(measurementArea));
+      handler(lightPoints) {
+        localStorage.setItem("lightPoints", JSON.stringify(lightPoints));
       },
       deep: true
     },
@@ -185,7 +189,61 @@ export default {
     }
   },
   computed: {
+    lightPointsWithPreparedData() {
+      const { pointsPerLengthCount, height } = this.measurementArea;
+
+      return this.lightPoints.map(lightPoint => {
+        const flowWidthHalfAngleRadian = degreeToRadian(
+          lightPoint.flowWidthAngle / 2
+        );
+        const lightCircleRadius = getRectangularTriangleBaseLength(
+          flowWidthHalfAngleRadian,
+          height
+        );
+        const lightCircleSquare = getCircleSquare(lightCircleRadius);
+        const lightPointRayCount = lightCircleSquare * pointsPerLengthCount;
+
+        return {
+          ...lightPoint,
+          flowWidthHalfAngleRadian,
+          lightCircleRadius,
+          lightPointRayCount
+        };
+      });
+    },
+
+    mirroredArea() {
+      const minX = min(
+        this.lightPointsWithPreparedData.map(
+          ({ lightCircleRadius, x }) => x - lightCircleRadius
+        )
+      );
+      const maxX = max(
+        this.lightPointsWithPreparedData.map(
+          ({ lightCircleRadius, x }) => x + lightCircleRadius
+        )
+      );
+      const minY = min(
+        this.lightPointsWithPreparedData.map(
+          ({ lightCircleRadius, y }) => y - lightCircleRadius
+        )
+      );
+      const maxY = max(
+        this.lightPointsWithPreparedData.map(
+          ({ lightCircleRadius, y }) => y + lightCircleRadius
+        )
+      );
+
+      return {
+        minX,
+        maxX,
+        minY,
+        maxY
+      };
+    },
+
     areaIntensityData() {
+      const start = Date.now();
       const {
         pointsPerLengthCount,
         xLength,
@@ -195,50 +253,65 @@ export default {
       } = this.measurementArea;
       const xPointsCount = xLength * pointsPerLengthCount;
       const yPointsCount = yLength * pointsPerLengthCount;
+      const res = [];
 
-      return flatten(
-        times(yPointsCount, measurementYPointIndex =>
-          times(xPointsCount, measurementXPointIndex => {
-            const measurementX = measurementXPointIndex / pointsPerLengthCount;
-            const measurementY = measurementYPointIndex / pointsPerLengthCount;
+      times(yPointsCount, measurementYPointIndex =>
+        times(xPointsCount, measurementXPointIndex => {
+          const measurementX = measurementXPointIndex / pointsPerLengthCount;
+          const measurementY = measurementYPointIndex / pointsPerLengthCount;
 
-            const measurementDirectIntensity = sumBy(
-              this.lightPoints,
-              lightPoint =>
-                getMeasurementPointIntensity(
-                  {
-                    measurementX,
-                    measurementY,
-                    pointsPerLengthCount,
-                    height
-                  },
-                  lightPoint
-                )
-            );
+          const measurementDirectIntensity = sumBy(
+            this.lightPointsWithPreparedData,
+            lightPoint =>
+              getMeasurementPointIntensity(
+                {
+                  measurementX,
+                  measurementY,
+                  pointsPerLengthCount,
+                  height
+                },
+                lightPoint
+              )
+          );
 
-            // TODO calculate multiple mirroring (use while)
-            const mirroredIntensity = sumBy(
-              [
-                {
-                  measurementX: -measurementX,
-                  measurementY: measurementY
-                },
-                {
-                  measurementX: measurementX,
-                  measurementY: -measurementY
-                },
-                {
-                  measurementX: xLength * 2 - measurementX,
-                  measurementY: measurementY
-                },
-                {
-                  measurementX: measurementX,
-                  measurementY: yLength * 2 - measurementY
-                }
-              ],
-              measurementPointCoordinates =>
+          // TODO calculate multiple mirroring (use while)
+          const mirroredIntensity = sumBy(
+            [
+              {
+                measurementX: -measurementX,
+                measurementY: measurementY
+              },
+              {
+                measurementX: measurementX,
+                measurementY: -measurementY
+              },
+              {
+                measurementX: xLength * 2 - measurementX,
+                measurementY: measurementY
+              },
+              {
+                measurementX: measurementX,
+                measurementY: yLength * 2 - measurementY
+              }
+            ],
+            measurementPointCoordinates => {
+              // Optimisation: return 0 if measurement point is out of lightening ??
+              if (
+                measurementPointCoordinates.measurementX <
+                  this.mirroredArea.minX ||
+                measurementPointCoordinates.measurementX >
+                  this.mirroredArea.maxX ||
+                measurementPointCoordinates.measurementY <
+                  this.mirroredArea.minY ||
+                measurementPointCoordinates.measurementY >
+                  this.mirroredArea.maxY
+              ) {
+                return 0;
+              }
+
+              return (
                 mirroringCoefficient *
-                sumBy(this.lightPoints, lightPoint =>
+                sumBy(this.lightPointsWithPreparedData, lightPoint =>
                   getMeasurementPointIntensity(
                     {
                       ...measurementPointCoordinates,
@@ -248,16 +321,20 @@ export default {
                     lightPoint
                   )
                 )
-            );
+              );
+            }
+          );
 
-            return {
-              x: measurementX,
-              y: measurementY,
-              intensity: measurementDirectIntensity + mirroredIntensity
-            };
-          })
-        )
+          res.push({
+            x: measurementX,
+            y: measurementY,
+            intensity: measurementDirectIntensity + mirroredIntensity
+          });
+        })
       );
+
+      console.log("areaIntensityData", Date.now() - start);
+      return res;
     },
 
     areaCutIntensityData() {
